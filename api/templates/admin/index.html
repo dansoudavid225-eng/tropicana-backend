@@ -1,0 +1,805 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}Tableau de bord — Tropicana Pio Pio{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --vert:   #2D6A4F;
+    --vert2:  #40916C;
+    --vert3:  #74C69D;
+    --jaune:  #F4A261;
+    --rouge:  #E63946;
+    --bleu:   #457B9D;
+    --gris:   #F8F9FA;
+    --shadow: 0 2px 12px rgba(0,0,0,.08);
+  }
+
+  #content { padding: 24px !important; background: #F0F4F1 !important; }
+
+  /* ── Grille stats ── */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .stat-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 20px 18px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-top: 4px solid var(--vert);
+    transition: transform .15s;
+  }
+  .stat-card:hover { transform: translateY(-3px); }
+  .stat-card .icon { font-size: 1.7rem; }
+  .stat-card .label { font-size: .78rem; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+  .stat-card .value { font-size: 1.7rem; font-weight: 800; color: var(--vert); }
+  .stat-card .sub   { font-size: .75rem; color: #999; }
+  .stat-card.orange { border-top-color: var(--jaune); }
+  .stat-card.orange .value { color: var(--jaune); }
+  .stat-card.rouge  { border-top-color: var(--rouge); }
+  .stat-card.rouge  .value { color: var(--rouge); }
+  .stat-card.bleu   { border-top-color: var(--bleu); }
+  .stat-card.bleu   .value { color: var(--bleu); }
+
+  /* ── Sections ── */
+  .dash-section {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    margin-bottom: 28px;
+    overflow: hidden;
+  }
+  .dash-section h2 {
+    margin: 0;
+    padding: 16px 22px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+    background: var(--vert);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .dash-section h2 span.count {
+    margin-left: auto;
+    background: rgba(255,255,255,.25);
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: .8rem;
+  }
+
+  /* ── Tableau ── */
+  .dash-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+  .dash-table th {
+    padding: 10px 14px;
+    background: #F0F4F1;
+    font-weight: 700;
+    color: var(--vert);
+    text-align: left;
+    font-size: .78rem;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+  }
+  .dash-table td { padding: 10px 14px; border-bottom: 1px solid #F0F4F1; vertical-align: middle; }
+  .dash-table tr:last-child td { border-bottom: none; }
+  .dash-table tr:hover td { background: #F7FAF8; }
+
+  /* ── Badges statut ── */
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+  }
+  .badge-en_attente   { background: #FFF3CD; color: #856404; }
+  .badge-confirmee    { background: #D1ECF1; color: #0C5460; }
+  .badge-en_livraison { background: #CCE5FF; color: #004085; }
+  .badge-livree       { background: #D4EDDA; color: #155724; }
+  .badge-annulee      { background: #F8D7DA; color: #721C24; }
+  .badge-payee        { background: #D4EDDA; color: #155724; }
+  .badge-non-payee    { background: #F8D7DA; color: #721C24; }
+
+  /* ── Formulaire action rapide ── */
+  .action-form { display: inline-flex; align-items: center; gap: 6px; }
+  .action-form select {
+    padding: 4px 8px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: .78rem;
+    background: #fff;
+    cursor: pointer;
+  }
+  .action-form button {
+    padding: 4px 10px;
+    background: var(--vert);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: .75rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .action-form button:hover { background: var(--vert2); }
+
+  /* ── Liens rapides ── */
+  .links-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+    padding: 20px;
+  }
+  .quick-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 10px;
+    border-radius: 12px;
+    background: var(--gris);
+    text-decoration: none;
+    color: var(--vert);
+    font-size: .82rem;
+    font-weight: 700;
+    text-align: center;
+    border: 2px solid transparent;
+    transition: all .15s;
+  }
+  .quick-link:hover {
+    background: var(--vert);
+    color: #fff;
+    border-color: var(--vert);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(45,106,79,.2);
+  }
+  .quick-link .ql-icon { font-size: 1.6rem; }
+
+  /* ── Graphique ── */
+  .chart-wrap { padding: 20px; }
+
+  /* ── 2 colonnes ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+  /* ── FedaPay ref ── */
+  .fedapay-ref { font-family: monospace; font-size: .75rem; color: #666; }
+
+  /* ── Recherche globale ── */
+  .search-global-wrap { position: relative; margin-bottom: 28px; }
+  .search-global-wrap input {
+    width: 100%; padding: 14px 20px 14px 48px;
+    border: 2px solid #E0EDE6; border-radius: 12px;
+    font-size: 1rem; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='%232D6A4F' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.099zm-5.242 1.856a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11'/%3E%3C/svg%3E") no-repeat 16px center;
+    box-shadow: var(--shadow); transition: border-color .2s;
+  }
+  .search-global-wrap input:focus { outline: none; border-color: var(--vert); }
+  #recherche-results {
+    display: none; position: absolute; top: 110%; left: 0; right: 0;
+    background: #fff; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,.12);
+    z-index: 1000; max-height: 400px; overflow-y: auto;
+  }
+  .sr-group { padding: 8px 16px; background: #F0F4F1; font-size: .75rem; font-weight: 700; color: var(--vert); text-transform: uppercase; letter-spacing: .5px; }
+  .sr-item { display: block; padding: 10px 16px; font-size: .875rem; text-decoration: none; color: #333; border-bottom: 1px solid #F0F4F1; transition: background .1s; }
+  .sr-item:hover { background: #F7FAF8; }
+
+  /* ── Nouvelles sections ── */
+  .section-actions { display: flex; gap: 10px; padding: 16px 20px; flex-wrap: wrap; }
+  .btn-action {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; border-radius: 8px; font-size: .82rem; font-weight: 700;
+    text-decoration: none; border: none; cursor: pointer; transition: all .15s;
+  }
+  .btn-vert   { background: var(--vert); color: #fff; }
+  .btn-vert:hover { background: var(--vert2); }
+  .btn-orange { background: var(--jaune); color: #fff; }
+  .btn-orange:hover { background: #e08c50; }
+  .btn-rouge  { background: var(--rouge); color: #fff; }
+  .btn-rouge:hover  { background: #c0303b; }
+  .btn-bleu   { background: var(--bleu); color: #fff; }
+  .btn-bleu:hover  { background: #355f7a; }
+
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# ════════════════════════════════════════════════════════════════════════
+   CARTES STATISTIQUES
+════════════════════════════════════════════════════════════════════════ #}
+
+{# ── Barre de recherche globale ── #}
+<div class="search-global-wrap">
+  <input type="text" id="recherche-globale" placeholder="🔍  Rechercher une commande, un client, un message..." autocomplete="off">
+  <div id="recherche-results"></div>
+</div>
+
+<div class="stat-grid">
+
+  <div class="stat-card">
+    <span class="icon">📦</span>
+    <span class="label">Total commandes</span>
+    <span class="value">{{ stats.total_commandes }}</span>
+    <span class="sub">{{ stats.commandes_attente }} en attente</span>
+  </div>
+
+  <div class="stat-card orange">
+    <span class="icon">⏳</span>
+    <span class="label">En attente</span>
+    <span class="value">{{ stats.commandes_attente }}</span>
+    <span class="sub">{{ stats.commandes_confirmees }} confirmées</span>
+  </div>
+
+  <div class="stat-card bleu">
+    <span class="icon">🚚</span>
+    <span class="label">En livraison</span>
+    <span class="value">{{ stats.commandes_livraison }}</span>
+    <span class="sub">en cours de livraison</span>
+  </div>
+
+  <div class="stat-card">
+    <span class="icon">💰</span>
+    <span class="label">CA total</span>
+    <span class="value" style="font-size:1.2rem;">{{ stats.total_fcfa }}</span>
+    <span class="sub">FCFA livrées</span>
+  </div>
+
+  <div class="stat-card">
+    <span class="icon">📅</span>
+    <span class="label">CA ce mois</span>
+    <span class="value" style="font-size:1.2rem;">{{ stats.ca_mois }}</span>
+    <span class="sub">FCFA ce mois</span>
+  </div>
+
+  <div class="stat-card bleu">
+    <span class="icon">👥</span>
+    <span class="label">Clients</span>
+    <span class="value">{{ stats.total_clients }}</span>
+    <span class="sub">inscrits</span>
+  </div>
+
+  <div class="stat-card">
+    <span class="icon">🛍️</span>
+    <span class="label">Produits</span>
+    <span class="value">{{ stats.produits_dispo }}</span>
+    <span class="sub">disponibles</span>
+  </div>
+
+  <div class="stat-card orange">
+    <span class="icon">📰</span>
+    <span class="label">Articles blog</span>
+    <span class="value">{{ stats.articles_publie }}</span>
+    <span class="sub">publiés</span>
+  </div>
+
+  <div class="stat-card bleu">
+    <span class="icon">📧</span>
+    <span class="label">Newsletter</span>
+    <span class="value">{{ stats.newsletter_abonnes }}</span>
+    <span class="sub">abonnés actifs</span>
+  </div>
+
+  <div class="stat-card rouge">
+    <span class="icon">✉️</span>
+    <span class="label">Messages</span>
+    <span class="value">{{ stats.messages_non_lus }}</span>
+    <span class="sub">non lus</span>
+  </div>
+
+  <div class="stat-card orange">
+    <span class="icon">⭐</span>
+    <span class="label">Avis</span>
+    <span class="value">{{ stats.temoignages_en_attente }}</span>
+    <span class="sub">à modérer</span>
+  </div>
+
+</div>
+
+{# ════════════════════════════════════════════════════════════════════════
+   GRAPHIQUE CA 6 MOIS  +  LIENS RAPIDES
+════════════════════════════════════════════════════════════════════════ #}
+<div class="two-col">
+
+  {# Graphique #}
+  <div class="dash-section">
+    <h2>📈 Chiffre d'affaires — 6 derniers mois</h2>
+    <div class="chart-wrap">
+      <canvas id="caChart" height="200"></canvas>
+    </div>
+  </div>
+
+  {# Liens rapides #}
+  <div class="dash-section">
+    <h2>⚡ Accès rapides</h2>
+    <div class="links-grid">
+      <a class="quick-link" href="/admin/api/commande/">
+        <span class="ql-icon">📦</span>Commandes
+      </a>
+      <a class="quick-link" href="/admin/api/utilisateur/">
+        <span class="ql-icon">👥</span>Clients
+      </a>
+      <a class="quick-link" href="/admin/api/produit/">
+        <span class="ql-icon">🛍️</span>Produits
+      </a>
+      <a class="quick-link" href="/admin/api/temoignage/">
+        <span class="ql-icon">⭐</span>Témoignages
+      </a>
+      <a class="quick-link" href="/admin/api/messagecontact/">
+        <span class="ql-icon">✉️</span>Messages
+      </a>
+      <a class="quick-link" href="/admin/api/articleblog/">
+        <span class="ql-icon">📰</span>Blog
+      </a>
+      <a class="quick-link" href="/admin/api/faq/">
+        <span class="ql-icon">❓</span>FAQ
+      </a>
+      <a class="quick-link" href="/admin/api/slider/">
+        <span class="ql-icon">🖼️</span>Slider
+      </a>
+      <a class="quick-link" href="/admin/api/bienfait/">
+        <span class="ql-icon">🌿</span>Bienfaits
+      </a>
+      <a class="quick-link" href="/admin/api/partenaire/">
+        <span class="ql-icon">🤝</span>Partenaires
+      </a>
+      <a class="quick-link" href="/admin/api/histoirechapitre/">
+        <span class="ql-icon">📖</span>Histoire
+      </a>
+      <a class="quick-link" href="/admin/api/mission/">
+        <span class="ql-icon">🎯</span>Missions
+      </a>
+      <a class="quick-link" href="/admin/api/fondateurconfig/">
+        <span class="ql-icon">👤</span>Fondateur
+      </a>
+      <a class="quick-link" href="/admin/api/configaccueil/">
+        <span class="ql-icon">🏠</span>Config Accueil
+      </a>
+      <a class="quick-link" href="/admin/api/configsite/">
+        <span class="ql-icon">⚙️</span>Config Site
+      </a>
+      <a class="quick-link" href="/admin/api/newsletterabonne/">
+        <span class="ql-icon">📧</span>Newsletter
+      </a>
+      <a class="quick-link" href="/admin/api/logconnexion/">
+        <span class="ql-icon">🔐</span>Logs connexion
+      </a>
+      <a class="quick-link" href="/admin/api/paniersauvegarde/">
+        <span class="ql-icon">🛒</span>Paniers sauveg.
+      </a>
+    </div>
+  </div>
+
+</div>
+
+
+{# ════════════════════════════════════════════════════════════════════════
+   ACTIONS RAPIDES ADMIN
+════════════════════════════════════════════════════════════════════════ #}
+<div class="dash-section" style="margin-bottom:28px;">
+  <h2>🚀 Actions administrateur</h2>
+  <div class="section-actions">
+    <a class="btn-action btn-vert"   href="/api/admin/rapport-pdf/?mois={{ stats.mois_actuel }}&annee={{ stats.annee_actuelle }}" target="_blank">
+      📄 Rapport PDF ce mois
+    </a>
+    <a class="btn-action btn-bleu"   href="/api/admin/commandes/?format=excel" target="_blank">
+      📊 Export Excel commandes
+    </a>
+    <a class="btn-action btn-bleu"   href="/api/admin/commandes/?format=csv" target="_blank">
+      📋 Export CSV commandes
+    </a>
+    <a class="btn-action btn-orange" href="/admin/api/zonelivraison/">
+      🚚 Gérer zones livraison
+    </a>
+    <a class="btn-action btn-orange" href="/admin/api/blacklist/">
+      🚫 Gérer blacklist
+    </a>
+    <a class="btn-action btn-orange" href="/admin/api/alertestock/">
+      ⚠️ Alertes stock
+    </a>
+    <a class="btn-action btn-vert"   href="/admin/api/codepromo/">
+      🎟️ Codes promo
+    </a>
+  </div>
+</div>
+
+{# ════════════════════════════════════════════════════════════════════════
+   DERNIÈRES COMMANDES
+════════════════════════════════════════════════════════════════════════ #}
+<div class="dash-section">
+  <h2>
+    📋 Dernières commandes
+    <span class="count">{{ stats.total_commandes }} total</span>
+  </h2>
+  <div style="overflow-x:auto;">
+    <table class="dash-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Client</th>
+          <th>Téléphone</th>
+          <th>Ville</th>
+          <th>Total</th>
+          <th>Paiement</th>
+          <th>FedaPay ref</th>
+          <th>Payée</th>
+          <th>Statut</th>
+          <th>Date</th>
+          <th>Action rapide</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in dernieres_commandes %}
+        <tr>
+          <td>
+            <a href="{% url 'admin:api_commande_change' c.pk %}" style="font-weight:700;color:var(--vert);">#{{ c.pk }}</a>
+          </td>
+          <td>{{ c.nom_client }}</td>
+          <td><a href="tel:{{ c.telephone_client }}" style="color:var(--vert);">{{ c.telephone_client }}</a></td>
+          <td>{{ c.ville_livraison }}</td>
+          <td><strong>{{ c.total }} FCFA</strong></td>
+          <td>{{ c.get_mode_paiement_display }}</td>
+          <td>
+            {% if c.fedapay_ref %}
+              <span class="fedapay-ref">{{ c.fedapay_ref }}</span>
+            {% else %}
+              <span style="color:#ccc;">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if c.payee %}
+              <span class="badge badge-payee">✓ Oui</span>
+            {% else %}
+              <span class="badge badge-non-payee">✗ Non</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge badge-{{ c.statut }}">{{ c.get_statut_display }}</span>
+          </td>
+          <td style="white-space:nowrap;color:#999;font-size:.78rem;">
+            {{ c.date_commande|date:"d/m/Y H:i" }}
+          </td>
+          <td>
+            <form method="post" class="action-form">
+              {% csrf_token %}
+              <input type="hidden" name="action_commande" value="1">
+              <input type="hidden" name="commande_id" value="{{ c.pk }}">
+              <select name="new_statut">
+                <option value="en_attente"   {% if c.statut == 'en_attente' %}selected{% endif %}>En attente</option>
+                <option value="confirmee"    {% if c.statut == 'confirmee' %}selected{% endif %}>Confirmée</option>
+                <option value="en_livraison" {% if c.statut == 'en_livraison' %}selected{% endif %}>En livraison</option>
+                <option value="livree"       {% if c.statut == 'livree' %}selected{% endif %}>Livrée</option>
+                <option value="annulee"      {% if c.statut == 'annulee' %}selected{% endif %}>Annulée</option>
+              </select>
+              <button type="submit">✓</button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="11" style="text-align:center;color:#999;padding:20px;">Aucune commande pour l'instant.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ════════════════════════════════════════════════════════════════════════
+   MESSAGES NON LUS  +  AVIS À MODÉRER
+════════════════════════════════════════════════════════════════════════ #}
+<div class="two-col">
+
+  {# Messages #}
+  <div class="dash-section">
+    <h2>
+      ✉️ Messages non lus
+      <span class="count">{{ stats.messages_non_lus }}</span>
+    </h2>
+    <table class="dash-table">
+      <thead>
+        <tr>
+          <th>Nom</th>
+          <th>Email</th>
+          <th>Sujet</th>
+          <th>Date</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in messages_non_lus %}
+        <tr>
+          <td><strong>{{ m.nom }}</strong></td>
+          <td style="font-size:.78rem;">{{ m.email }}</td>
+          <td>{{ m.sujet|truncatechars:30 }}</td>
+          <td style="color:#999;font-size:.75rem;white-space:nowrap;">{{ m.date_envoi|date:"d/m H:i" }}</td>
+          <td>
+            <a href="{% url 'admin:api_messagecontact_change' m.pk %}" style="color:var(--vert);font-size:.78rem;font-weight:700;">Voir →</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" style="text-align:center;color:#999;padding:20px;">Aucun message non lu 🎉</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# Témoignages #}
+  <div class="dash-section">
+    <h2>
+      ⭐ Avis à modérer
+      <span class="count">{{ stats.temoignages_en_attente }}</span>
+    </h2>
+    <table class="dash-table">
+      <thead>
+        <tr>
+          <th>Client</th>
+          <th>Note</th>
+          <th>Commentaire</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in temoignages_attente %}
+        <tr>
+          <td><strong>{{ t.nom }}</strong></td>
+          <td>
+            {% for i in "12345" %}{% if forloop.counter <= t.note %}⭐{% endif %}{% endfor %}
+          </td>
+          <td style="font-size:.78rem;">{{ t.commentaire|truncatechars:50 }}</td>
+          <td>
+            <a href="{% url 'admin:api_temoignage_change' t.pk %}" style="color:var(--vert);font-size:.78rem;font-weight:700;">Modérer →</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" style="text-align:center;color:#999;padding:20px;">Aucun avis en attente 🎉</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+{# ════════════════════════════════════════════════════════════════════════
+   SCRIPT GRAPHIQUE
+════════════════════════════════════════════════════════════════════════ #}
+
+{# ════════════════════════════════════════════════════════════════════════
+   TOP CLIENTS + GRAPHIQUE AMÉLIORÉ
+════════════════════════════════════════════════════════════════════════ #}
+<div class="two-col">
+
+  {# Top 5 clients #}
+  <div class="dash-section">
+    <h2>👑 Top 5 clients</h2>
+    <table class="dash-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Client</th>
+          <th>Email</th>
+          <th>Commandes</th>
+          <th>CA total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in top_clients %}
+        <tr>
+          <td>
+            {% if forloop.counter == 1 %}🥇{% elif forloop.counter == 2 %}🥈{% elif forloop.counter == 3 %}🥉{% else %}{{ forloop.counter }}{% endif %}
+          </td>
+          <td><strong>{{ c.nom_client }}</strong></td>
+          <td style="font-size:.78rem;color:#666;">{{ c.email_client }}</td>
+          <td style="text-align:center;"><strong>{{ c.nb_commandes }}</strong></td>
+          <td><strong style="color:var(--vert);">{{ c.ca_total|floatformat:0 }} FCFA</strong></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" style="text-align:center;color:#999;padding:20px;">Aucune commande livrée pour l'instant.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# Stats par statut #}
+  <div class="dash-section">
+    <h2>📊 Commandes par statut</h2>
+    <div style="padding:20px;">
+      <canvas id="statutChart" height="200"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  const ctx = document.getElementById('caChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: {{ chart_labels|safe }},
+      datasets: [{
+        label: 'CA (FCFA)',
+        data: {{ chart_valeurs|safe }},
+        backgroundColor: 'rgba(45, 106, 79, 0.25)',
+        borderColor: '#2D6A4F',
+        borderWidth: 2,
+        borderRadius: 8,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.parsed.y.toLocaleString('fr-FR') + ' FCFA'
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: v => v.toLocaleString('fr-FR')
+          },
+          grid: { color: '#F0F4F1' }
+        },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+})();
+
+// ── Graphique donut commandes par statut ──────────────────────────────────
+(function () {
+  const ctx2 = document.getElementById('statutChart');
+  if (!ctx2) return;
+  new Chart(ctx2.getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: ['En attente', 'Confirmée', 'En livraison', 'Livrée', 'Annulée'],
+      datasets: [{
+        data: [
+          {{ stats.commandes_attente }},
+          {{ stats.commandes_confirmees }},
+          {{ stats.commandes_livraison }},
+          {{ stats.total_commandes }} - {{ stats.commandes_attente }} - {{ stats.commandes_confirmees }} - {{ stats.commandes_livraison }},
+          0
+        ],
+        backgroundColor: ['#F4A261','#457B9D','#74C69D','#2D6A4F','#E63946'],
+        borderWidth: 2,
+        borderColor: '#fff',
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+      },
+      cutout: '65%',
+    }
+  });
+})();
+</script>
+
+{% endblock %}
+
+{# ════════════════════════════════════════════════════════════════════════
+   NOTIFICATION TEMPS RÉEL + RECHERCHE GLOBALE + NOUVELLES SECTIONS
+════════════════════════════════════════════════════════════════════════ #}
+
+{# Injecter le bloc avant </body> via JavaScript — on l'ajoute juste après le script Chart #}
+<script>
+// ── Polling nouvelles commandes (toutes les 30s) ──────────────────────────
+(function() {
+  let derniereDate = null;
+  let notifShown   = false;
+
+  function creerNotif(nb) {
+    if (notifShown) return;
+    notifShown = true;
+    const div = document.createElement('div');
+    div.id = 'notif-commande';
+    div.style.cssText = [
+      'position:fixed', 'top:20px', 'right:20px', 'z-index:9999',
+      'background:#2D6A4F', 'color:#fff', 'padding:16px 24px',
+      'border-radius:12px', 'box-shadow:0 4px 20px rgba(0,0,0,.25)',
+      'font-weight:700', 'font-size:1rem', 'cursor:pointer',
+      'animation:slideIn .3s ease'
+    ].join(';');
+    div.innerHTML = `🛒 ${nb} nouvelle${nb>1?'s':''} commande${nb>1?'s':''} en attente ! <span style="margin-left:8px;opacity:.7;font-size:.8rem;">Cliquer pour fermer</span>`;
+    div.onclick = () => { div.remove(); notifShown = false; };
+    document.body.appendChild(div);
+    setTimeout(() => { if(div.parentNode) { div.remove(); notifShown = false; } }, 8000);
+  }
+
+  async function pollCommandes() {
+    try {
+      const params = derniereDate ? `?depuis=${encodeURIComponent(derniereDate)}` : '';
+      const r = await fetch(`/api/admin/nouvelles-commandes/${params}`, {
+        headers: {'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''}
+      });
+      if (!r.ok) return;
+      const data = await r.json();
+      if (data.nouvelles_commandes > 0) creerNotif(data.nouvelles_commandes);
+      if (data.derniere_date) derniereDate = data.derniere_date;
+    } catch(e) {}
+  }
+
+  // Style animation
+  const style = document.createElement('style');
+  style.textContent = '@keyframes slideIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}';
+  document.head.appendChild(style);
+
+  // Démarrer après 5s puis toutes les 30s
+  setTimeout(() => { pollCommandes(); setInterval(pollCommandes, 30000); }, 5000);
+})();
+
+
+// ── Recherche globale ──────────────────────────────────────────────────────
+(function() {
+  const searchBox = document.getElementById('recherche-globale');
+  const results   = document.getElementById('recherche-results');
+  if (!searchBox || !results) return;
+
+  let timer = null;
+
+  searchBox.addEventListener('input', function() {
+    clearTimeout(timer);
+    const q = this.value.trim();
+    if (q.length < 2) { results.style.display = 'none'; return; }
+    timer = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/admin/recherche/?q=${encodeURIComponent(q)}`);
+        if (!r.ok) return;
+        const data = await r.json();
+        let html = '';
+
+        if (data.commandes.length) {
+          html += '<div class="sr-group">📦 Commandes</div>';
+          data.commandes.forEach(c => {
+            html += `<a class="sr-item" href="/admin/api/commande/${c.id}/change/">
+              <strong>#${c.id}</strong> — ${c.nom} — <em>${c.total.toLocaleString('fr-FR')} FCFA</em>
+              <span class="badge badge-${c.statut}" style="margin-left:8px;font-size:.7rem;">${c.statut}</span>
+            </a>`;
+          });
+        }
+        if (data.clients.length) {
+          html += '<div class="sr-group">👥 Clients</div>';
+          data.clients.forEach(u => {
+            html += `<a class="sr-item" href="/admin/api/utilisateur/${u.id}/change/">
+              <strong>${u.nom}</strong> — ${u.email}
+            </a>`;
+          });
+        }
+        if (data.messages.length) {
+          html += '<div class="sr-group">✉️ Messages</div>';
+          data.messages.forEach(m => {
+            html += `<a class="sr-item" href="/admin/api/messagecontact/${m.id}/change/">
+              <strong>${m.nom}</strong> — ${m.sujet}
+            </a>`;
+          });
+        }
+        if (!html) html = '<div class="sr-item" style="color:#999;">Aucun résultat.</div>';
+        results.innerHTML = html;
+        results.style.display = 'block';
+      } catch(e) {}
+    }, 350);
+  });
+
+  document.addEventListener('click', e => {
+    if (!searchBox.contains(e.target) && !results.contains(e.target)) {
+      results.style.display = 'none';
+    }
+  });
+})();
+</script>
