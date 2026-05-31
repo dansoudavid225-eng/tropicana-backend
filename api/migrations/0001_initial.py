@@ -32,6 +32,8 @@ class Migration(migrations.Migration):
                 ('is_active',     models.BooleanField(default=True)),
                 ('is_staff',      models.BooleanField(default=False)),
                 ('date_inscription', models.DateTimeField(default=django.utils.timezone.now)),
+                ('google_id',        models.CharField(blank=True, max_length=100, null=True, unique=True)),
+                ('photo_url',        models.URLField(blank=True, null=True)),
                 ('groups',        models.ManyToManyField(blank=True, related_name='user_set', related_query_name='user', to='auth.group', verbose_name='groups')),
                 ('user_permissions', models.ManyToManyField(blank=True, related_name='user_set', related_query_name='user', to='auth.permission', verbose_name='user permissions')),
             ],
