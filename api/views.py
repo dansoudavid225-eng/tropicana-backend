@@ -4,7 +4,14 @@ from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
-from django.core.mail import send_mail
+from django.core.mail import send_mail as _send_mail_original
+
+def send_mail(*args, **kwargs):
+    kwargs['fail_silently'] = True
+    try:
+        _send_mail_original(*args, **kwargs)
+    except Exception:
+        pass
 from django.conf import settings
 from django.utils import timezone
 from django.utils.crypto import get_random_string
@@ -148,18 +155,21 @@ class InscriptionView(APIView):
         serializer = InscriptionSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
-            send_mail(
-                subject='🌿 Bienvenue chez Tropicana Pio Pio !',
-                message=(
-                    f"Bonjour {user.prenom},\n\n"
-                    f"Votre compte Tropicana Pio Pio a été créé avec succès.\n"
-                    f"Découvrez notre boutique : https://tropicanapiopio.com/boutique\n\n"
-                    f"— L'équipe Tropicana Pio Pio 🌿"
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                fail_silently=True,
-            )
+            try:
+                send_mail(
+                    subject='🌿 Bienvenue chez Tropicana Pio Pio !',
+                    message=(
+                        f"Bonjour {user.prenom},\n\n"
+                        f"Votre compte Tropicana Pio Pio a été créé avec succès.\n"
+                        f"Découvrez notre boutique : https://tropicanapiopio.com/boutique\n\n"
+                        f"— L'équipe Tropicana Pio Pio 🌿"
+                    ),
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[user.email],
+                    fail_silently=True,
+                )
+            except Exception:
+                pass
             return Response(
                 {'message': 'Compte créé avec succès.', **tokens_pour_utilisateur(user)},
                 status=status.HTTP_201_CREATED
