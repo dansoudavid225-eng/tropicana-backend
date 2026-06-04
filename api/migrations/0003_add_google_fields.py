@@ -13,9 +13,5 @@ class Migration(migrations.Migration):
             name='google_id',
             field=models.CharField(blank=True, max_length=100, null=True, unique=True),
         ),
-        migrations.AddField(
-            model_name='utilisateur',
-            name='photo_url',
-            field=models.URLField(blank=True, null=True),
-        ),
+
     ]

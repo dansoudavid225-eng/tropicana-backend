@@ -25,7 +25,6 @@ PRODUITS = [
         'disponible':  True,
         'stock':       0,
         'quantite_min': 6,
-        'ordre':       1,
     },
     {
         'nom':         'Thé Pio Pio — Sachet verveine citronnelle',
@@ -37,7 +36,6 @@ PRODUITS = [
         'disponible':  True,
         'stock':       0,
         'quantite_min': 1,
-        'ordre':       2,
     },
 ]
 
@@ -55,7 +53,8 @@ def creer_donnees(apps, schema_editor):
     FAQ          = apps.get_model('api', 'FAQ')
 
     for p in PRODUITS:
-        Produit.objects.get_or_create(slug=p['slug'], defaults=p)
+        safe_fields = {k: v for k, v in p.items() if k != 'ordre'}
+        Produit.objects.get_or_create(slug=safe_fields['slug'], defaults=safe_fields)
 
     for ville, prix, delai, ordre in ZONES_LIVRAISON:
         ZoneLivraison.objects.get_or_create(ville=ville, defaults={'prix': prix, 'delai': delai, 'ordre': ordre, 'disponible': True})
