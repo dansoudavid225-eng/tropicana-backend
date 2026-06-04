@@ -233,6 +233,8 @@ _cors_raw = os.environ.get(
 CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_raw.split(',') if o.strip()]
 CORS_ALLOW_ALL_ORIGINS = False  # ✅ Toujours explicitement désactivé
 CORS_ALLOW_CREDENTIALS = True
+# ── Email timeout ──────────────────────────────────────────────────────────────
+EMAIL_TIMEOUT = 5  # secondes
 
 # ── Email ─────────────────────────────────────────────────────────────────────
 # ✅ CORRECTION 4 : SMTP réel via variables d'environnement
