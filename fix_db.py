@@ -1,52 +1,27 @@
-#!/usr/bin/env python
-"""
-Répare la base SQLite : ajoute les colonnes manquantes puis applique les migrations.
-Lance : python fix_db.py
-"""
-import os, sys, sqlite3, glob
-
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, '.')
-
-# ── Trouver la base SQLite ──────────────────────────────────────────────────
-candidates = glob.glob('*.sqlite3') + glob.glob('db.sqlite3') + glob.glob('**/*.sqlite3', recursive=True)
-db_path = None
-for c in candidates:
-    if 'venv' not in c:
-        db_path = c
-        break
-
-if not db_path:
-    print("❌ Aucune base SQLite trouvée. Lance d'abord : python manage.py migrate")
-    sys.exit(1)
-
-print(f"✅ Base trouvée : {db_path}")
-conn = sqlite3.connect(db_path)
-cur = conn.cursor()
-
-# ── Vérifier / ajouter les colonnes manquantes ─────────────────────────────
-fixes = [
-    ("api_commande", "fedapay_ref", "VARCHAR(100) NOT NULL DEFAULT ''"),
-    ("api_commande", "payee",       "BOOL NOT NULL DEFAULT 0"),
-]
-
-for table, col, col_def in fixes:
-    cur.execute(f"PRAGMA table_info({table})")
-    cols = [row[1] for row in cur.fetchall()]
-    if col not in cols:
-        cur.execute(f"ALTER TABLE {table} ADD COLUMN {col} {col_def}")
-        print(f"  ✅ Colonne ajoutée : {table}.{col}")
-    else:
-        print(f"  ℹ️  Déjà présente  : {table}.{col}")
-
-conn.commit()
-conn.close()
-
-# ── Appliquer toutes les migrations en attente ────────────────────────────
-print("\n⏳ Application des migrations Django...")
+import os
 import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tropicana_backend.settings')
 django.setup()
-from django.core.management import call_command
-call_command('migrate', '--run-syncdb')
-print("\n✅ Tout est bon ! Relance le serveur : python manage.py runserver")
+
+from django.db import connection
+
+sql_commands = [
+    "ALTER TABLE api_configsite ADD COLUMN IF NOT EXISTS telephone_raw varchar(20) DEFAULT '+22901000000'",
+    "ALTER TABLE api_configsite ADD COLUMN IF NOT EXISTS tiktok_url varchar(200) DEFAULT ''",
+    "ALTER TABLE api_configsite ADD COLUMN IF NOT EXISTS facebook_url varchar(200) DEFAULT ''",
+    "ALTER TABLE api_configsite ADD COLUMN IF NOT EXISTS description_footer text DEFAULT ''",
+    "ALTER TABLE api_configsite ADD COLUMN IF NOT EXISTS prix_affiche varchar(50) DEFAULT 'des 1000 FCFA'",
+    "ALTER TABLE api_configsite ADD COLUMN IF NOT EXISTS prix_mini varchar(50) DEFAULT '1000 FCFA'",
+    "ALTER TABLE api_configsite ADD COLUMN IF NOT EXISTS paiements varchar(200) DEFAULT 'MTN Money'",
+    "ALTER TABLE api_configsite ADD COLUMN IF NOT EXISTS email varchar(254) DEFAULT ''",
+]
+
+with connection.cursor() as cursor:
+    for sql in sql_commands:
+        try:
+            cursor.execute(sql)
+            print(f"OK: {sql[:60]}")
+        except Exception as e:
+            print(f"SKIP: {e}")
+
+print("Done!")
