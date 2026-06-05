@@ -535,19 +535,19 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='resetpasswordtoken',
             name='cree_le',
-            field=models.DateTimeField(auto_now_add=True, default=''),
+            field=models.DateTimeField(auto_now_add=True, default=django.utils.timezone.now),
             preserve_default=False,
         ),
         migrations.AddField(
             model_name='resetpasswordtoken',
             name='expire_le',
-            field=models.DateTimeField(default=''),
+            field=models.DateTimeField(default=django.utils.timezone.now),
             preserve_default=False,
         ),
         migrations.AddField(
             model_name='slider',
             name='date_creation',
-            field=models.DateTimeField(auto_now_add=True, default=''),
+            field=models.DateTimeField(auto_now_add=True, default=django.utils.timezone.now),
             preserve_default=False,
         ),
         migrations.AddField(
