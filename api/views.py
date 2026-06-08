@@ -700,7 +700,7 @@ class AdminCommandesView(generics.ListAPIView):
         writer.writerow(['ID', 'Date', 'Client', 'Email', 'Téléphone', 'Ville',
                          'Statut', 'Mode paiement', 'FedaPay ref', 'Payée', 'Total (FCFA)', 'Produits'])
         for cmd in qs:
-            produits = ' | '.join([f"{l.produit.nom if l.produit else "Produit"} x{l.quantite}" for l in cmd.lignes.all()])
+            produits = ' | '.join([f"{l.produit.nom if l.produit else 'Produit'} x{l.quantite}" for l in cmd.lignes.all()])
             writer.writerow([
                 cmd.id,
                 cmd.date_commande.strftime('%d/%m/%Y %H:%M'),
@@ -740,7 +740,7 @@ class AdminCommandesView(generics.ListAPIView):
 
             # Données
             for row_idx, cmd in enumerate(qs, 2):
-                produits = ' | '.join([f"{l.produit.nom if l.produit else "Produit"} x{l.quantite}" for l in cmd.lignes.all()])
+                produits = ' | '.join([f"{l.produit.nom if l.produit else 'Produit'} x{l.quantite}" for l in cmd.lignes.all()])
                 valeurs = [
                     cmd.id,
                     cmd.date_commande.strftime('%d/%m/%Y %H:%M'),
@@ -1593,6 +1593,7 @@ class AdminBlacklistView(APIView):
         type_bl = request.data.get('type_blacklist', 'email')
         if not valeur:
             return Response({'detail': 'Valeur requise.'}, status=400)
+o
         bl, created = Blacklist.objects.get_or_create(
             valeur=valeur,
             defaults={
