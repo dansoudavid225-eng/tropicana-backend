@@ -1592,7 +1592,6 @@ class AdminBlacklistView(APIView):
         valeur = request.data.get('valeur', '').strip().lower()
         type_bl = request.data.get('type_blacklist', 'email')
         if not valeur:
-            return Response({'detail': 'Valeur requise.'}, status=400)
 o
         bl, created = Blacklist.objects.get_or_create(
             valeur=valeur,
