@@ -61,7 +61,7 @@ def envoyer_confirmation_commande(commande):
         return
     try:
         lignes_txt = '\n'.join([
-            f"   • {l.produit.nom if l.produit else "Produit"} x{l.quantite} — {l.prix_unitaire if hasattr(l, "prix_unitaire") else "" if hasattr(l, "prix_unitaire") else ""} FCFA"
+            f"   • {l.produit.nom if l.produit else 'Produit'} x{l.quantite} — {getattr(l, 'prix_unitaire', '')} FCFA"
             for l in commande.lignes.all()
         ])
         send_mail(
