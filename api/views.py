@@ -458,7 +458,6 @@ class CommandeCreerView(APIView):
         # ── Paiement FedaPay ──────────────────────────────────────────────
         if commande.mode_paiement == 'fedapay' and settings.FEDAPAY_SECRET_KEY:
             try:
-            try:
                 import requests as req_lib
                 frontend_url = getattr(settings, 'FRONTEND_URL', 'https://tropicana-pio-pio.netlify.app')
                 fedapay_env  = getattr(settings, 'FEDAPAY_ENV', 'live')
