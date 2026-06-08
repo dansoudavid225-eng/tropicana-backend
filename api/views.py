@@ -1591,7 +1591,6 @@ class AdminBlacklistView(APIView):
     def post(self, request):
         valeur = request.data.get('valeur', '').strip().lower()
         type_bl = request.data.get('type_blacklist', 'email')
-o
         bl, created = Blacklist.objects.get_or_create(
             valeur=valeur,
             defaults={
