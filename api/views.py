@@ -61,7 +61,7 @@ def envoyer_confirmation_commande(commande):
         return
     try:
         lignes_txt = '\n'.join([
-            f"   • {l.produit_nom} x{l.quantite} — {l.prix_unitaire} FCFA"
+            f"   • {l.produit.nom if l.produit else "Produit"} x{l.quantite} — {l.prix_unitaire if hasattr(l, "prix_unitaire") else "" if hasattr(l, "prix_unitaire") else ""} FCFA"
             for l in commande.lignes.all()
         ])
         send_mail(
@@ -458,38 +458,47 @@ class CommandeCreerView(APIView):
         # ── Paiement FedaPay ──────────────────────────────────────────────
         if commande.mode_paiement == 'fedapay' and settings.FEDAPAY_SECRET_KEY:
             try:
-                import fedapay
-                fedapay.api_key     = settings.FEDAPAY_SECRET_KEY
-                fedapay.environment = settings.FEDAPAY_ENV
-
-                frontend_url = settings.FRONTEND_URL
-                transaction = fedapay.Transaction.create(
-                    description=f'Commande Tropicana Pio Pio #{commande.pk}',
-                    amount=int(commande.total),
-                    currency={'iso': 'XOF'},
-                    callback_url=f'{frontend_url}/paiement/retour?commande={commande.pk}',
-                    customer={
-                        'firstname': commande.nom_client.split()[0] if commande.nom_client else '',
+            try:
+                import requests as req_lib
+                frontend_url = getattr(settings, 'FRONTEND_URL', 'https://tropicana-pio-pio.netlify.app')
+                fedapay_env  = getattr(settings, 'FEDAPAY_ENV', 'live')
+                base_url     = 'https://api.fedapay.com' if fedapay_env == 'live' else 'https://sandbox-api.fedapay.com'
+                headers      = {
+                    'Authorization': f'Bearer {settings.FEDAPAY_SECRET_KEY}',
+                    'Content-Type':  'application/json',
+                }
+                payload = {
+                    'description': f'Commande Tropicana Pio Pio #{commande.pk}',
+                    'amount':      int(commande.total),
+                    'currency':    {'iso': 'XOF'},
+                    'callback_url': f'{frontend_url}/paiement/retour?commande={commande.pk}',
+                    'customer': {
+                        'firstname': commande.nom_client.split()[0] if commande.nom_client else 'Client',
                         'lastname':  ' '.join(commande.nom_client.split()[1:]) if commande.nom_client else '',
-                        'email':     commande.email_client,
+                        'email':     commande.email_client or '',
                         'phone_number': {
-                            'number':  commande.telephone_client.replace(' ', '').replace('+229', '').replace('+', ''),
+                            'number':  commande.telephone_client.replace(' ', '').replace('+229', '').replace('+', '') if commande.telephone_client else '',
                             'country': 'BJ',
                         }
                     }
-                )
-                commande.fedapay_ref = str(transaction['v1/transaction']['id'])
+                }
+                r = req_lib.post(f'{base_url}/v1/transactions', json=payload, headers=headers, timeout=30)
+                r.raise_for_status()
+                transaction_id = r.json()['v1/transaction']['id']
+                commande.fedapay_ref = str(transaction_id)
                 commande.save(update_fields=['fedapay_ref'])
-                token = transaction.generate_token()
+                r2 = req_lib.post(f'{base_url}/v1/transactions/{transaction_id}/token', headers=headers, timeout=30)
+                r2.raise_for_status()
+                token_val = r2.json()['token']['token']
+                fedapay_url = f'https://checkout.fedapay.com/{token_val}' if fedapay_env == 'live' else f'https://sandbox-checkout.fedapay.com/{token_val}'
                 return Response({
                     'message':     'Commande créée. Redirigez vers FedaPay pour payer.',
                     'commande_id': commande.pk,
                     'total':       commande.total,
                     'reduction':   reduction,
                     'statut':      commande.statut,
-                    'fedapay_url': token['url'],
+                    'fedapay_url': fedapay_url,
                 }, status=status.HTTP_201_CREATED)
-
             except Exception as e:
                 logger_securite.error(f'FedaPay error commande #{commande.pk}: {e}')
                 return Response({
@@ -692,7 +701,7 @@ class AdminCommandesView(generics.ListAPIView):
         writer.writerow(['ID', 'Date', 'Client', 'Email', 'Téléphone', 'Ville',
                          'Statut', 'Mode paiement', 'FedaPay ref', 'Payée', 'Total (FCFA)', 'Produits'])
         for cmd in qs:
-            produits = ' | '.join([f"{l.produit_nom} x{l.quantite}" for l in cmd.lignes.all()])
+            produits = ' | '.join([f"{l.produit.nom if l.produit else "Produit"} x{l.quantite}" for l in cmd.lignes.all()])
             writer.writerow([
                 cmd.id,
                 cmd.date_commande.strftime('%d/%m/%Y %H:%M'),
@@ -732,7 +741,7 @@ class AdminCommandesView(generics.ListAPIView):
 
             # Données
             for row_idx, cmd in enumerate(qs, 2):
-                produits = ' | '.join([f"{l.produit_nom} x{l.quantite}" for l in cmd.lignes.all()])
+                produits = ' | '.join([f"{l.produit.nom if l.produit else "Produit"} x{l.quantite}" for l in cmd.lignes.all()])
                 valeurs = [
                     cmd.id,
                     cmd.date_commande.strftime('%d/%m/%Y %H:%M'),
@@ -1924,8 +1933,8 @@ class AdminBonCommandeView(APIView):
             return Response({'detail': 'Commande introuvable.'}, status=404)
 
         lignes_html = ''.join([
-            f'<tr><td>{l.produit_nom}</td><td style="text-align:center">{l.quantite}</td>'
-            f'<td style="text-align:right">{int(l.prix_unitaire):,} FCFA</td>'
+            f'<tr><td>{l.produit.nom if l.produit else "Produit"}</td><td style="text-align:center">{l.quantite}</td>'
+            f'<td style="text-align:right">{int(l.prix_unitaire if hasattr(l, "prix_unitaire") else "" if hasattr(l, "prix_unitaire") else ""):,} FCFA</td>'
             f'<td style="text-align:right">{int(l.sous_total):,} FCFA</td></tr>'
             for l in commande.lignes.all()
         ])
@@ -2044,7 +2053,7 @@ class SuiviCommandeView(APIView):
         lignes = [{
             'produit_nom':  l.produit.nom if l.produit else 'Produit supprimé',
             'quantite':     l.quantite,
-            'prix_unitaire': int(l.prix_unitaire),
+            'prix_unitaire': int(l.prix_unitaire if hasattr(l, "prix_unitaire") else "" if hasattr(l, "prix_unitaire") else ""),
             'sous_total':   int(l.sous_total),
         } for l in commande.lignes.all()]
 

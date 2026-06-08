@@ -28,7 +28,8 @@ from .views import (
     AdminTemoignagesView, AdminTemoignageDetailView,
     AdminUtilisateursView,
     # Public nouveaux modèles
-    SlidersPublicView, BienfaitsPublicView, PartenairesPublicView,
+    SlidersPublicView,
+    ZonesLivraisonPublicView, BienfaitsPublicView, PartenairesPublicView,
     HistoirePublicView, BlogPublicView, BlogDetailPublicView,
     MissionsPublicView, FondateurPublicView,
     # Admin nouveaux modèles
@@ -93,6 +94,7 @@ urlpatterns = [
     path('missions/',           MissionsPublicView.as_view(),   name='missions-public'),
     path('fondateur/',          FondateurPublicView.as_view(),  name='fondateur-public'),
     path('config-accueil/',     ConfigAccueilPublicView.as_view(), name='config-accueil-public'),
+    path('zones-livraison/',    ZonesLivraisonPublicView.as_view(), name='zones-livraison-public'),
     path('config-site/',        ConfigSitePublicView.as_view(),    name='config-site-public'),
     path('faq/',                FAQPublicView.as_view(),            name='faq-public'),
 
