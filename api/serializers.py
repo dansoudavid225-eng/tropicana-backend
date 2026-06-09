@@ -8,6 +8,8 @@ from .models import Utilisateur, Produit, Commande, LigneCommande, Temoignage, M
 class InscriptionSerializer(serializers.ModelSerializer):
     mot_de_passe = serializers.CharField(write_only=True, min_length=6)
     confirmation = serializers.CharField(write_only=True)
+    telephone    = serializers.CharField(required=False, allow_blank=True, default='')
+    ville        = serializers.CharField(required=False, allow_blank=True, default='')
 
     class Meta:
         model  = Utilisateur
@@ -15,6 +17,8 @@ class InscriptionSerializer(serializers.ModelSerializer):
                   'mot_de_passe', 'confirmation']
 
     def validate_telephone(self, value):
+        if not value:
+            return value
         import re
         cleaned = re.sub(r'[\s\-\.]', '', value)
         if not re.match(r'^(\+229)?[0-9]{8,12}$', cleaned):
