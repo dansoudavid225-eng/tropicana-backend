@@ -472,7 +472,7 @@ class CommandeCreerView(APIView):
                     'description': f'Commande Tropicana Pio Pio #{commande.pk}',
                     'amount':      int(commande.total),
                     'currency':    {'iso': 'XOF'},
-                    'callback_url': f'{frontend_url}/paiement/retour?commande={commande.pk}',
+                    'callback_url': f'{frontend_url}/paiement/retour?commande={commande.pk}&email={commande.email_client}',
                     'customer': {
                         'firstname': commande.nom_client.split()[0] if commande.nom_client else 'Client',
                         'lastname':  ' '.join(commande.nom_client.split()[1:]) if commande.nom_client else '',
