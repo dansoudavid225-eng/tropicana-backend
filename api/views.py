@@ -497,11 +497,7 @@ class CommandeCreerView(APIView):
                 r2 = req_lib.post(f'{base_url}/v1/transactions/{transaction_id}/token', headers=headers, timeout=30)
                 r2.raise_for_status()
                 r2_json = r2.json()
-                logger_securite.error(f'FedaPay token response: {r2_json}')
-                token_obj = r2_json.get('token') or r2_json
-                token_val = token_obj.get('token') if isinstance(token_obj, dict) else token_obj
-                logger_securite.error(f'FedaPay token_val: {token_val}')
-                fedapay_url = f'https://checkout.fedapay.com/{token_val}' if fedapay_env == 'live' else f'https://sandbox-checkout.fedapay.com/{token_val}'
+                fedapay_url = r2_json.get('url') or r2_json.get('token', {}).get('url', '')
                 return Response({
                     'message':     'Commande créée. Redirigez vers FedaPay pour payer.',
                     'commande_id': commande.pk,
