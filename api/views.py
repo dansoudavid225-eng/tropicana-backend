@@ -453,6 +453,32 @@ class CommandeCreerView(APIView):
         except Exception as e:
             logger_securite.error(f'Alerte stock error: {e}')
 
+        # Notification email à l'admin pour chaque nouvelle commande
+        try:
+            lignes_txt = '\n'.join(
+                f"- {l.produit.nom if l.produit else '?'} x{l.quantite}"
+                for l in commande.lignes.select_related('produit').all()
+            )
+            send_mail(
+                subject=f'Nouvelle commande #{commande.pk} - {commande.total} FCFA',
+                message=(
+                    f"Nouvelle commande recue sur Tropicana Pio Pio !\n\n"
+                    f"Commande : #{commande.pk}\n"
+                    f"Client : {commande.nom_client or '-'}\n"
+                    f"Telephone : {commande.telephone or '-'}\n"
+                    f"Ville : {commande.ville or '-'}\n"
+                    f"Mode de paiement : {commande.mode_paiement}\n"
+                    f"Total : {commande.total} FCFA\n\n"
+                    f"Produits :\n{lignes_txt}\n\n"
+                    f"Voir dans l'admin : https://tropicana-api.onrender.com/admin/api/commande/{commande.pk}/change/"
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=['tropicanapiopio.officiel@gmail.com'],
+                fail_silently=True,
+            )
+        except Exception as e:
+            logger_securite.error(f'Email notification commande error: {e}')
+
         # Vider le panier backend
         if request.user.is_authenticated:
             PanierSauvegarde.objects.filter(utilisateur=request.user).update(donnees={'lignes': []})
