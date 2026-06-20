@@ -257,7 +257,14 @@ class DemandeResetMotDePasseView(APIView):
         # Réponse identique qu'il existe ou pas (évite l'énumération d'emails)
         try:
             user = Utilisateur.objects.get(email=email)
-            token_obj, _ = ResetPasswordToken.objects.get_or_create(utilisateur=user)
+            token_obj, _ = ResetPasswordToken.objects.get_or_create(
+                utilisateur=user,
+                defaults={
+                    'token': get_random_string(64),
+                    'expire_le': timezone.now() + datetime.timedelta(hours=1),
+                    'utilise': False,
+                }
+            )
             token_obj.token    = get_random_string(64)
             token_obj.expire_le = timezone.now() + datetime.timedelta(hours=1)
             token_obj.utilise  = False
