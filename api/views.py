@@ -259,7 +259,7 @@ class DemandeResetMotDePasseView(APIView):
             user = Utilisateur.objects.get(email=email)
             token_obj, _ = ResetPasswordToken.objects.get_or_create(utilisateur=user)
             token_obj.token    = get_random_string(64)
-            token_obj.expire_a = timezone.now() + datetime.timedelta(hours=1)
+            token_obj.expire_le = timezone.now() + datetime.timedelta(hours=1)
             token_obj.utilise  = False
             token_obj.save()
             lien = f"{settings.FRONTEND_URL}/reinitialiser-mot-de-passe?token={token_obj.token}"
@@ -287,7 +287,7 @@ class VerifierTokenResetView(APIView):
         token = request.query_params.get('token', '')
         try:
             t = ResetPasswordToken.objects.get(token=token, utilise=False)
-            if t.expire_a < timezone.now():
+            if t.expire_le < timezone.now():
                 return Response({'detail': 'Lien expiré.'}, status=400)
             return Response({'detail': 'Token valide.'})
         except ResetPasswordToken.DoesNotExist:
@@ -304,7 +304,7 @@ class ConfirmerResetMotDePasseView(APIView):
             return Response({'detail': 'Token et mot de passe (8 caractères min) requis.'}, status=400)
         try:
             t = ResetPasswordToken.objects.get(token=token, utilise=False)
-            if t.expire_a < timezone.now():
+            if t.expire_le < timezone.now():
                 return Response({'detail': 'Lien expiré.'}, status=400)
             t.utilisateur.set_password(nouveau_mdp)
             t.utilisateur.save()
