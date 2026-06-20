@@ -6,12 +6,15 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.core.mail import send_mail as _send_mail_original
 
+import logging
+_logger_email = logging.getLogger('api.securite')
+
 def send_mail(*args, **kwargs):
-    kwargs['fail_silently'] = True
+    kwargs['fail_silently'] = False
     try:
         _send_mail_original(*args, **kwargs)
-    except Exception:
-        pass
+    except Exception as e:
+        _logger_email.error(f'ERREUR ENVOI EMAIL: {type(e).__name__}: {e}')
 from django.conf import settings
 from django.utils import timezone
 from django.utils.crypto import get_random_string
