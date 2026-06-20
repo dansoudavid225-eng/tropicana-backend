@@ -574,14 +574,23 @@ class FedapayWebhookView(APIView):
         # Pas de secret configuré → on accepte tous les webhooks FedaPay (mode sans signature)
 
         try:
-            payload          = json.loads(request.body)
-            event            = payload.get('name', '')
-            transaction_data = payload.get('data', {}).get('object', {})
-            transaction_id   = str(transaction_data.get('id', ''))
+            payload = json.loads(request.body)
+            logger_securite.error(f'FedaPay webhook payload: {payload}')
+            event = payload.get('name', '')
+
+            # FedaPay peut envoyer la transaction sous differentes cles selon la version d'API
+            transaction_data = (
+                payload.get('data', {}).get('object', {}) or
+                payload.get('entity', {}) or
+                payload.get('data', {}) or
+                {}
+            )
+            transaction_id   = str(transaction_data.get('id', '') or '')
             transaction_status = transaction_data.get('status', '')
 
             if not transaction_id:
-                return Response({'detail': 'Données manquantes'}, status=status.HTTP_400_BAD_REQUEST)
+                logger_securite.error(f'FedaPay webhook: transaction_id manquant dans {payload}')
+                return Response({'detail': 'Donnees manquantes'}, status=status.HTTP_400_BAD_REQUEST)
 
             try:
                 commande = Commande.objects.get(fedapay_ref=transaction_id)
