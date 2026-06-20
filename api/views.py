@@ -453,31 +453,32 @@ class CommandeCreerView(APIView):
         except Exception as e:
             logger_securite.error(f'Alerte stock error: {e}')
 
-        # Notification email à l'admin pour chaque nouvelle commande
-        try:
-            lignes_txt = '\n'.join(
-                f"- {l.produit.nom if l.produit else '?'} x{l.quantite}"
-                for l in commande.lignes.select_related('produit').all()
-            )
-            send_mail(
-                subject=f'Nouvelle commande #{commande.pk} - {commande.total} FCFA',
-                message=(
-                    f"Nouvelle commande recue sur Tropicana Pio Pio !\n\n"
-                    f"Commande : #{commande.pk}\n"
-                    f"Client : {commande.nom_client or '-'}\n"
-                    f"Telephone : {commande.telephone_client or '-'}\n"
-                    f"Ville : {commande.ville_livraison or '-'}\n"
-                    f"Mode de paiement : {commande.mode_paiement}\n"
-                    f"Total : {commande.total} FCFA\n\n"
-                    f"Produits :\n{lignes_txt}\n\n"
-                    f"Voir dans l'admin : https://tropicana-api.onrender.com/admin/api/commande/{commande.pk}/change/"
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=['tropicanapiopio.officiel@gmail.com'],
-                fail_silently=True,
-            )
-        except Exception as e:
-            logger_securite.error(f'Email notification commande error: {e}')
+        # Notification email à l'admin (sauf FedaPay : on attend la confirmation du paiement)
+        if commande.mode_paiement != 'fedapay':
+            try:
+                lignes_txt = '\n'.join(
+                    f"- {l.produit.nom if l.produit else '?'} x{l.quantite}"
+                    for l in commande.lignes.select_related('produit').all()
+                )
+                send_mail(
+                    subject=f'Nouvelle commande #{commande.pk} - {commande.total} FCFA',
+                    message=(
+                        f"Nouvelle commande recue sur Tropicana Pio Pio !\n\n"
+                        f"Commande : #{commande.pk}\n"
+                        f"Client : {commande.nom_client or '-'}\n"
+                        f"Telephone : {commande.telephone_client or '-'}\n"
+                        f"Ville : {commande.ville_livraison or '-'}\n"
+                        f"Mode de paiement : {commande.mode_paiement}\n"
+                        f"Total : {commande.total} FCFA\n\n"
+                        f"Produits :\n{lignes_txt}\n\n"
+                        f"Voir dans l'admin : https://tropicana-api.onrender.com/admin/api/commande/{commande.pk}/change/"
+                    ),
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=['tropicanapiopio.officiel@gmail.com'],
+                    fail_silently=True,
+                )
+            except Exception as e:
+                logger_securite.error(f'Email notification commande error: {e}')
 
         # Vider le panier backend
         if request.user.is_authenticated:
@@ -592,6 +593,30 @@ class FedapayWebhookView(APIView):
                 commande.statut = 'confirmee'
                 commande.save(update_fields=['payee', 'statut'])
                 envoyer_confirmation_commande(commande)
+                try:
+                    lignes_txt = '\n'.join(
+                        f"- {l.produit.nom if l.produit else '?'} x{l.quantite}"
+                        for l in commande.lignes.select_related('produit').all()
+                    )
+                    send_mail(
+                        subject=f'Paiement confirme - commande #{commande.pk} - {commande.total} FCFA',
+                        message=(
+                            f"Paiement confirme sur Tropicana Pio Pio !\n\n"
+                            f"Commande : #{commande.pk}\n"
+                            f"Client : {commande.nom_client or '-'}\n"
+                            f"Telephone : {commande.telephone_client or '-'}\n"
+                            f"Ville : {commande.ville_livraison or '-'}\n"
+                            f"Mode de paiement : {commande.mode_paiement}\n"
+                            f"Total : {commande.total} FCFA\n\n"
+                            f"Produits :\n{lignes_txt}\n\n"
+                            f"Voir dans l'admin : https://tropicana-api.onrender.com/admin/api/commande/{commande.pk}/change/"
+                        ),
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        recipient_list=['tropicanapiopio.officiel@gmail.com'],
+                        fail_silently=True,
+                    )
+                except Exception as e:
+                    logger_securite.error(f'Email notification paiement confirme error: {e}')
 
             elif transaction_status in ('declined', 'canceled') or event in ('transaction.declined', 'transaction.canceled'):
                 commande.statut = 'annulee'
