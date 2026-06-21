@@ -7,12 +7,36 @@ from django.contrib.auth import authenticate
 from django.core.mail import send_mail as _send_mail_original
 
 import logging
+import requests as _requests_email
 _logger_email = logging.getLogger('api.securite')
 
-def send_mail(*args, **kwargs):
-    kwargs['fail_silently'] = False
+def send_mail(subject, message, from_email, recipient_list, fail_silently=True, **kwargs):
+    """Envoie un email via l'API Brevo (HTTP) au lieu de SMTP (bloque sur Render)."""
+    brevo_key = getattr(settings, 'BREVO_API_KEY', '')
+    if not brevo_key:
+        _logger_email.error('BREVO_API_KEY non configuree')
+        return
     try:
-        _send_mail_original(*args, **kwargs)
+        sender_email = 'tropicanapiopio.officiel@gmail.com'
+        sender_name = 'Tropicana Pio Pio'
+        payload = {
+            'sender': {'name': sender_name, 'email': sender_email},
+            'to': [{'email': r} for r in recipient_list],
+            'subject': subject,
+            'textContent': message,
+        }
+        resp = _requests_email.post(
+            'https://api.brevo.com/v3/smtp/email',
+            json=payload,
+            headers={
+                'api-key': brevo_key,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            timeout=15,
+        )
+        if resp.status_code >= 400:
+            _logger_email.error(f'ERREUR ENVOI EMAIL (Brevo {resp.status_code}): {resp.text}')
     except Exception as e:
         _logger_email.error(f'ERREUR ENVOI EMAIL: {type(e).__name__}: {e}')
 from django.conf import settings
