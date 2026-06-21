@@ -774,3 +774,18 @@ class AlerteStockAdmin(admin.ModelAdmin):
 class ReponseAvisAdmin(admin.ModelAdmin):
     list_display  = ['temoignage', 'date', 'modifie_par']
     readonly_fields = ['date']
+
+
+from .models import SiteContentConfig
+
+
+@admin.register(SiteContentConfig)
+class SiteContentConfigAdmin(admin.ModelAdmin):
+    list_display    = ['__str__', 'date_maj']
+    readonly_fields = ['date_maj']
+
+    def has_add_permission(self, request):
+        return not SiteContentConfig.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False

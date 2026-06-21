@@ -13,6 +13,7 @@ from .views import (
     # Public
     ProduitsListView, ProduitDetailView,
     CommandeCreerView, MesCommandesView, CommandeDetailView, FedapayWebhookView,
+    SuiviCommandeView,
     TemoignagesListView, ContactView,
     # Newsletter
     NewsletterInscriptionView, NewsletterDesabonnementView, AdminNewsletterView,
@@ -23,7 +24,7 @@ from .views import (
     # Admin classique
     AdminCommandesView, AdminCommandeDetailView,
     AdminMessagesView, AdminMessageDetailView,
-    AdminSiteConfigView,
+    AdminSiteConfigView, SiteContentPublicView,
     AdminProduitsView, AdminProduitDetailView,
     AdminTemoignagesView, AdminTemoignageDetailView,
     AdminUtilisateursView,
@@ -43,6 +44,15 @@ from .views import (
     ConfigAccueilPublicView, AdminConfigAccueilView,
     ConfigSitePublicView, AdminConfigSiteView,
     FAQPublicView, AdminFAQView, AdminFAQDetailView,
+    # Zones de livraison
+    AdminZonesLivraisonView, AdminZoneLivraisonDetailView,
+    # Blacklist
+    AdminBlacklistView, AdminBlacklistDetailView,
+    # Alertes stock
+    AdminAlertesStockView,
+    # Remboursement, bon de commande, rapport PDF, historique, recherche, reponse avis
+    AdminRemboursementView, AdminBonCommandeView, AdminRapportPDFView,
+    AdminHistoriqueCommandeView, AdminRechercheGlobaleView, AdminReponseAvisView,
 )
 
 urlpatterns = [
@@ -67,6 +77,7 @@ urlpatterns = [
     # ── Commandes ─────────────────────────────────────────────────────────
     path('commandes/',                 CommandeCreerView.as_view(),    name='commande-creer'),
     path('commandes/mes/',             MesCommandesView.as_view(),     name='mes-commandes'),
+    path('commandes/suivi/',           SuiviCommandeView.as_view(),    name='commande-suivi'),
     path('commandes/<int:pk>/',        CommandeDetailView.as_view(),   name='commande-detail'),
     path('paiement/webhook/fedapay/',  FedapayWebhookView.as_view(),   name='fedapay-webhook'),
 
@@ -96,6 +107,7 @@ urlpatterns = [
     path('config-accueil/',     ConfigAccueilPublicView.as_view(), name='config-accueil-public'),
     path('zones-livraison/',    ZonesLivraisonPublicView.as_view(), name='zones-livraison-public'),
     path('config-site/',        ConfigSitePublicView.as_view(),    name='config-site-public'),
+    path('content-site/',       SiteContentPublicView.as_view(),   name='content-site-public'),
     path('faq/',                FAQPublicView.as_view(),            name='faq-public'),
 
     # ── ADMIN ─────────────────────────────────────────────────────────────
@@ -127,11 +139,33 @@ urlpatterns = [
     path('admin/faq/',                    AdminFAQView.as_view(),              name='admin-faq'),
     path('admin/faq/<int:pk>/',           AdminFAQDetailView.as_view(),        name='admin-faq-detail'),
 
+    # ── Zones de livraison (admin) ────────────────────────────────────────
+    path('admin/zones-livraison/',           AdminZonesLivraisonView.as_view(),      name='admin-zones-livraison'),
+    path('admin/zones-livraison/<int:pk>/',  AdminZoneLivraisonDetailView.as_view(), name='admin-zone-livraison-detail'),
+
+    # ── Blacklist (admin) ─────────────────────────────────────────────────
+    path('admin/blacklist/',          AdminBlacklistView.as_view(),       name='admin-blacklist'),
+    path('admin/blacklist/<int:pk>/', AdminBlacklistDetailView.as_view(), name='admin-blacklist-detail'),
+
+    # ── Alertes stock (admin) ─────────────────────────────────────────────
+    path('admin/alertes-stock/', AdminAlertesStockView.as_view(), name='admin-alertes-stock'),
+
+    # ── Commandes — bon de commande, remboursement, historique (admin) ───
+    path('admin/commandes/<int:pk>/bon/',         AdminBonCommandeView.as_view(),       name='admin-commande-bon'),
+    path('admin/commandes/<int:pk>/rembourser/',  AdminRemboursementView.as_view(),     name='admin-commande-rembourser'),
+    path('admin/commandes/<int:pk>/historique/',  AdminHistoriqueCommandeView.as_view(),name='admin-commande-historique'),
+
+    # ── Rapport PDF mensuel (admin) ───────────────────────────────────────
+    path('admin/rapport-pdf/', AdminRapportPDFView.as_view(), name='admin-rapport-pdf'),
+
+    # ── Recherche globale (admin) ─────────────────────────────────────────
+    path('admin/recherche/', AdminRechercheGlobaleView.as_view(), name='admin-recherche'),
+
+    # ── Réponse aux avis (admin) ──────────────────────────────────────────
+    path('admin/temoignages/<int:pk>/reponse/', AdminReponseAvisView.as_view(), name='admin-temoignage-reponse'),
+
     # ── Newsletter ────────────────────────────────────────────────────────
     path('newsletter/inscription/',   NewsletterInscriptionView.as_view(),   name='newsletter-inscription'),
     path('newsletter/desabonnement/', NewsletterDesabonnementView.as_view(), name='newsletter-desabonnement'),
     path('admin/newsletter/',         AdminNewsletterView.as_view(),         name='admin-newsletter'),
 ]
-
-# ── Imports supplémentaires ───────────────────────────────────────────────────
-# (ajoutés dynamiquement en bas du fichier)

@@ -179,6 +179,7 @@ def _get_client_ip(request):
 
 class InscriptionView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_scope     = 'auth'
 
     def post(self, request):
         serializer = InscriptionSerializer(data=request.data)
@@ -208,6 +209,7 @@ class InscriptionView(APIView):
 
 class ConnexionView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_scope     = 'auth'
 
     def post(self, request):
         email       = request.data.get('email', '').lower().strip()
@@ -248,6 +250,7 @@ class DeconnexionView(APIView):
 
 class GoogleAuthView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_scope     = 'auth'
 
     def post(self, request):
         if not GOOGLE_AUTH_AVAILABLE:
@@ -255,10 +258,10 @@ class GoogleAuthView(APIView):
         serializer = GoogleAuthSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        id_token_str = serializer.validated_data['id_token']
+        credential = serializer.validated_data['credential']
         try:
             idinfo = id_token.verify_oauth2_token(
-                id_token_str, google_requests.Request(), settings.GOOGLE_CLIENT_ID
+                credential, google_requests.Request(), settings.GOOGLE_CLIENT_ID
             )
             email     = idinfo.get('email', '').lower()
             prenom    = idinfo.get('given_name', '')
@@ -276,6 +279,7 @@ class GoogleAuthView(APIView):
 
 class DemandeResetMotDePasseView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_scope     = 'auth'
 
     def post(self, request):
         email = request.data.get('email', '').strip().lower()
@@ -316,6 +320,7 @@ class DemandeResetMotDePasseView(APIView):
 
 class VerifierTokenResetView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_scope     = 'auth'
 
     def get(self, request):
         token = request.query_params.get('token', '')
@@ -330,6 +335,7 @@ class VerifierTokenResetView(APIView):
 
 class ConfirmerResetMotDePasseView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_scope     = 'auth'
 
     def post(self, request):
         token        = request.data.get('token', '')
@@ -365,6 +371,7 @@ class ProfilView(APIView):
 
 class ModifierMotDePasseView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    throttle_scope     = 'auth'
 
     def post(self, request):
         serializer = ModifierMotDePasseSerializer(data=request.data, context={'request': request})
@@ -552,13 +559,25 @@ class CommandeCreerView(APIView):
                     r_json.get('transaction') or
                     r_json
                 )
-                transaction_id = transaction_obj['id']
+                transaction_id = transaction_obj.get('id') if isinstance(transaction_obj, dict) else None
+                if not transaction_id:
+                    logger_securite.error(
+                        f'FedaPay: id de transaction introuvable pour commande #{commande.pk}. '
+                        f'Reponse creation transaction : {r_json}'
+                    )
+                    raise ValueError('Reponse FedaPay sans id de transaction.')
                 commande.fedapay_ref = str(transaction_id)
                 commande.save(update_fields=['fedapay_ref'])
                 r2 = req_lib.post(f'{base_url}/v1/transactions/{transaction_id}/token', headers=headers, timeout=30)
                 r2.raise_for_status()
                 r2_json = r2.json()
                 fedapay_url = r2_json.get('url') or r2_json.get('token', {}).get('url', '')
+                if not fedapay_url:
+                    logger_securite.error(
+                        f'FedaPay: url de paiement vide pour commande #{commande.pk} '
+                        f'(transaction #{transaction_id}). Reponse token : {r2_json}'
+                    )
+                    raise ValueError('Reponse FedaPay sans url de paiement.')
                 return Response({
                     'message':     'Commande créée. Redirigez vers FedaPay pour payer.',
                     'commande_id': commande.pk,
@@ -566,6 +585,19 @@ class CommandeCreerView(APIView):
                     'reduction':   reduction,
                     'statut':      commande.statut,
                     'fedapay_url': fedapay_url,
+                }, status=status.HTTP_201_CREATED)
+            except req_lib.exceptions.HTTPError as e:
+                corps_reponse = e.response.text if e.response is not None else ''
+                logger_securite.error(
+                    f'FedaPay HTTP error commande #{commande.pk}: {e} — corps reponse: {corps_reponse}'
+                )
+                return Response({
+                    'message':     'Commande enregistrée. Le paiement en ligne est temporairement indisponible — notre équipe vous contactera.',
+                    'commande_id': commande.pk,
+                    'total':       commande.total,
+                    'reduction':   reduction,
+                    'statut':      commande.statut,
+                    'fedapay_url': None,
                 }, status=status.HTTP_201_CREATED)
             except Exception as e:
                 logger_securite.error(f'FedaPay error commande #{commande.pk}: {e}')
@@ -1090,31 +1122,30 @@ class AdminMessageDetailView(generics.RetrieveUpdateAPIView):
     queryset           = MessageContact.objects.all()
 
 
+from .models import SiteContentConfig
+
+
 class AdminSiteConfigView(APIView):
     permission_classes = [permissions.IsAdminUser]
 
-    def _get_path(self):
-        import os
-        return os.path.join(settings.BASE_DIR, 'site_config.json')
-
     def get(self, request):
-        import os
-        path = self._get_path()
-        if os.path.exists(path):
-            with open(path, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-        else:
-            config = {}
-        return Response(config)
+        obj = SiteContentConfig.load()
+        return Response(obj.donnees or {})
 
     def post(self, request):
-        path = self._get_path()
-        try:
-            with open(path, 'w', encoding='utf-8') as f:
-                json.dump(request.data, f, ensure_ascii=False, indent=2)
-            return Response({'message': 'Configuration sauvegardée.', 'config': request.data})
-        except Exception as e:
-            return Response({'detail': str(e)}, status=400)
+        obj = SiteContentConfig.load()
+        obj.donnees = request.data
+        obj.save()
+        return Response({'message': 'Configuration sauvegardée.', 'config': obj.donnees})
+
+
+class SiteContentPublicView(APIView):
+    """Lecture publique du contenu éditorial (Hero, footer, blog, etc.) — sans auth."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        obj = SiteContentConfig.load()
+        return Response(obj.donnees or {})
 
 
 class AdminProduitsView(generics.ListCreateAPIView):
@@ -2150,10 +2181,10 @@ class SuiviCommandeView(APIView):
             return Response({'detail': 'Commande introuvable. Vérifiez votre numéro et votre email.'}, status=404)
 
         lignes = [{
-            'produit_nom':  l.produit.nom if l.produit else 'Produit supprimé',
-            'quantite':     l.quantite,
-            'prix_unitaire': int(l.prix_unitaire if hasattr(l, "prix_unitaire") else "" if hasattr(l, "prix_unitaire") else ""),
-            'sous_total':   int(l.sous_total),
+            'produit_nom':   l.produit.nom if l.produit else 'Produit supprimé',
+            'quantite':      l.quantite,
+            'prix_unitaire': int(l.prix_unitaire),
+            'sous_total':    int(l.sous_total),
         } for l in commande.lignes.all()]
 
         return Response({

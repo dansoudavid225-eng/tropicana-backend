@@ -718,3 +718,37 @@ class AlerteStock(models.Model):
 
     def __str__(self):
         return f'Alerte stock — {self.produit.nom} (seuil: {self.seuil})'
+
+
+# ─── Contenu éditorial du site (Hero, footer, blog, etc.) ─────────────────────
+
+class SiteContentConfig(models.Model):
+    """
+    Singleton — stocke tout le contenu éditorial du site (titres, sous-titres,
+    bienfaits, blog, partenaires, couleurs, etc.) en JSON, en base de données.
+
+    Remplace l'ancien fichier site_config.json sur disque, qui était effacé
+    à chaque déploiement sur Render (filesystem éphémère). Géré par le
+    panneau admin React via /api/admin/config/.
+    """
+    donnees      = models.JSONField(default=dict, blank=True)
+    date_maj     = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name        = 'Contenu du site (éditorial)'
+        verbose_name_plural = 'Contenu du site (éditorial)'
+
+    def __str__(self):
+        return 'Contenu éditorial du site'
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        pass
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj

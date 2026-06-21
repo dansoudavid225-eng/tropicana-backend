@@ -32,3 +32,6 @@ staticfiles/
 .DS_Store
 Thumbs.db
 logs/
+
+.env.production
+logs/

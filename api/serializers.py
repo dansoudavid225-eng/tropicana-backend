@@ -78,10 +78,6 @@ class ModifierMotDePasseSerializer(serializers.Serializer):
 
 class GoogleAuthSerializer(serializers.Serializer):
     credential = serializers.CharField()
-    google_id  = serializers.CharField()
-    email      = serializers.EmailField()
-    prenom     = serializers.CharField()
-    nom        = serializers.CharField()
     photo_url  = serializers.URLField(required=False, allow_blank=True)
 
 
@@ -225,6 +221,19 @@ class TemoignageCreerSerializer(serializers.ModelSerializer):
             if hasattr(value, 'content_type') and value.content_type not in TYPES_AUTORISES:
                 raise serializers.ValidationError(
                     'Format image non autorisé. Utilisez JPEG, PNG ou WebP.')
+        return value
+
+    def validate_video_fichier(self, value):
+        """✅ Validation : seules les vraies vidéos sont acceptées (anti upload de fichier arbitraire)."""
+        if value:
+            TYPES_AUTORISES = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo']
+            if hasattr(value, 'content_type') and value.content_type not in TYPES_AUTORISES:
+                raise serializers.ValidationError(
+                    'Format vidéo non autorisé. Utilisez MP4, WebM ou MOV.')
+            TAILLE_MAX = 50 * 1024 * 1024  # 50 Mo
+            if hasattr(value, 'size') and value.size > TAILLE_MAX:
+                raise serializers.ValidationError(
+                    'La vidéo dépasse la taille maximale autorisée (50 Mo).')
         return value
 
     def validate(self, data):
