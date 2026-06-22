@@ -46,20 +46,40 @@ class InscriptionSerializer(serializers.ModelSerializer):
 
 
 class UtilisateurSerializer(serializers.ModelSerializer):
-    nom_complet = serializers.ReadOnlyField()
+    nom_complet     = serializers.ReadOnlyField()
+    photo_affichee  = serializers.SerializerMethodField()
+
+    def get_photo_affichee(self, obj):
+        if obj.photo:
+            request = self.context.get('request')
+            return request.build_absolute_uri(obj.photo.url) if request else obj.photo.url
+        return obj.photo_url or None
 
     class Meta:
         model  = Utilisateur
         fields = ['id', 'prenom', 'nom', 'nom_complet', 'email',
                   'telephone', 'ville', 'date_inscription',
-                  'photo_url', 'google_id', 'is_staff']
+                  'photo_url', 'photo_affichee', 'google_id', 'is_staff']
         read_only_fields = ['id', 'email', 'date_inscription', 'google_id', 'is_staff']
 
 
 class ModifierProfilSerializer(serializers.ModelSerializer):
+    photo = serializers.ImageField(required=False, allow_null=True)
+
+    def validate_photo(self, value):
+        """Validation : seules les images sont acceptées, taille raisonnable."""
+        if value:
+            TYPES_AUTORISES = ['image/jpeg', 'image/png', 'image/webp']
+            if hasattr(value, 'content_type') and value.content_type not in TYPES_AUTORISES:
+                raise serializers.ValidationError('Format non autorisé. Utilisez JPEG, PNG ou WebP.')
+            TAILLE_MAX = 5 * 1024 * 1024  # 5 Mo
+            if hasattr(value, 'size') and value.size > TAILLE_MAX:
+                raise serializers.ValidationError("L'image dépasse la taille maximale autorisée (5 Mo).")
+        return value
+
     class Meta:
         model  = Utilisateur
-        fields = ['prenom', 'nom', 'telephone', 'ville']
+        fields = ['prenom', 'nom', 'telephone', 'ville', 'photo']
 
 
 class ModifierMotDePasseSerializer(serializers.Serializer):

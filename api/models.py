@@ -60,6 +60,8 @@ class Utilisateur(AbstractBaseUser, PermissionsMixin):
     date_inscription = models.DateTimeField(default=timezone.now)
     google_id        = models.CharField(max_length=100, blank=True, null=True, unique=True)
     photo_url        = models.URLField(blank=True, null=True)
+    photo            = models.ImageField(upload_to='utilisateurs/photos/', blank=True, null=True,
+                                          help_text='Photo de profil uploadée par le client.')
 
     objects = UtilisateurManager()
 
@@ -72,6 +74,13 @@ class Utilisateur(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return f"{self.prenom} {self.nom} <{self.email}>"
+
+    @property
+    def photo_affichee(self):
+        """Retourne l'URL de la photo uploadée si elle existe, sinon celle de Google."""
+        if self.photo:
+            return self.photo.url
+        return self.photo_url or None
 
     @property
     def nom_complet(self):

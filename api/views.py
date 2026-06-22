@@ -357,15 +357,16 @@ class ConfirmerResetMotDePasseView(APIView):
 
 class ProfilView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes      = [MultiPartParser, FormParser, JSONParser]
 
     def get(self, request):
-        return Response(UtilisateurSerializer(request.user).data)
+        return Response(UtilisateurSerializer(request.user, context={'request': request}).data)
 
     def patch(self, request):
         serializer = ModifierProfilSerializer(request.user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            return Response(UtilisateurSerializer(request.user, context={'request': request}).data)
         return Response(serializer.errors, status=400)
 
 
