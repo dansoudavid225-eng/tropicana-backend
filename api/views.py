@@ -301,18 +301,21 @@ class DemandeResetMotDePasseView(APIView):
             token_obj.utilise  = False
             token_obj.save()
             lien = f"{settings.FRONTEND_URL}/reinitialiser-mot-de-passe?token={token_obj.token}"
-            send_mail(
-                subject='[Tropicana Pio Pio] Réinitialisation de votre mot de passe',
-                message=(
-                    f"Bonjour {user.prenom},\n\n"
-                    f"Cliquez sur ce lien pour réinitialiser votre mot de passe (valable 1h) :\n{lien}\n\n"
-                    f"Si vous n'avez pas fait cette demande, ignorez cet email.\n\n"
-                    f"— L'équipe Tropicana Pio Pio"
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[email],
-                fail_silently=False,
-            )
+            try:
+                send_mail(
+                    subject='[Tropicana Pio Pio] Réinitialisation de votre mot de passe',
+                    message=(
+                        f"Bonjour {user.prenom},\n\n"
+                        f"Cliquez sur ce lien pour réinitialiser votre mot de passe (valable 1h) :\n{lien}\n\n"
+                        f"Si vous n'avez pas fait cette demande, ignorez cet email.\n\n"
+                        f"— L'équipe Tropicana Pio Pio"
+                    ),
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[email],
+                    fail_silently=False,
+                )
+            except Exception as e:
+                logger_securite.error(f"Echec envoi email reset mot de passe pour {email} : {e}")
         except Utilisateur.DoesNotExist:
             pass
         return Response({'detail': 'Si cet email existe, un lien de réinitialisation a été envoyé.'})
