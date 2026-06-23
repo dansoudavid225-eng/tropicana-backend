@@ -2096,7 +2096,7 @@ class AdminBonCommandeView(APIView):
 
         lignes_html = ''.join([
             f'<tr><td>{l.produit.nom if l.produit else "Produit"}</td><td style="text-align:center">{l.quantite}</td>'
-            f'<td style="text-align:right">{int(l.prix_unitaire if hasattr(l, "prix_unitaire") else "" if hasattr(l, "prix_unitaire") else ""):,} FCFA</td>'
+            f'<td style="text-align:right">{int(l.prix_unitaire):,} FCFA</td>'
             f'<td style="text-align:right">{int(l.sous_total):,} FCFA</td></tr>'
             for l in commande.lignes.all()
         ])
