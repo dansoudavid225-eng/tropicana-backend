@@ -544,7 +544,7 @@ class CommandeCreerView(APIView):
                     'description': f'Commande Tropicana Pio Pio #{commande.pk}',
                     'amount':      int(commande.total),
                     'currency':    {'iso': 'XOF'},
-                    'callback_url': f'{frontend_url}/paiement/retour?commande={commande.pk}&email={commande.email_client}',
+                    'callback_url': f'{frontend_url}/paiement/retour?commande={commande.pk}',
                     'customer': {
                         'firstname': commande.nom_client.split()[0] if commande.nom_client else 'Client',
                         'lastname':  ' '.join(commande.nom_client.split()[1:]) if commande.nom_client else '',
@@ -728,6 +728,24 @@ class CommandeDetailView(generics.RetrieveAPIView):
         except Commande.DoesNotExist:
             from rest_framework.exceptions import NotFound
             raise NotFound('Commande introuvable.')
+
+
+class StatutPaiementPublicView(APIView):
+    """
+    Vérification publique du statut de paiement d'une commande, utilisée par la page
+    de retour FedaPay (le client n'est pas forcément connecté à ce moment-là).
+    Ne révèle volontairement AUCUNE donnée personnelle (pas de nom, email, adresse...),
+    uniquement les deux champs nécessaires à l'affichage : payee et statut.
+    """
+    permission_classes = [permissions.AllowAny]
+    throttle_scope      = 'contact'
+
+    def get(self, request, pk):
+        try:
+            commande = Commande.objects.only('id', 'payee', 'statut').get(pk=pk)
+        except Commande.DoesNotExist:
+            return Response({'detail': 'Commande introuvable.'}, status=404)
+        return Response({'id': commande.pk, 'payee': commande.payee, 'statut': commande.statut})
 
 
 # ─── Témoignages ──────────────────────────────────────────────────────────────

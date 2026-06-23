@@ -13,7 +13,7 @@ from .views import (
     # Public
     ProduitsListView, ProduitDetailView,
     CommandeCreerView, MesCommandesView, CommandeDetailView, FedapayWebhookView,
-    SuiviCommandeView,
+    SuiviCommandeView, StatutPaiementPublicView,
     TemoignagesListView, ContactView,
     # Newsletter
     NewsletterInscriptionView, NewsletterDesabonnementView, AdminNewsletterView,
@@ -78,6 +78,7 @@ urlpatterns = [
     path('commandes/',                 CommandeCreerView.as_view(),    name='commande-creer'),
     path('commandes/mes/',             MesCommandesView.as_view(),     name='mes-commandes'),
     path('commandes/suivi/',           SuiviCommandeView.as_view(),    name='commande-suivi'),
+    path('commandes/<int:pk>/statut-paiement/', StatutPaiementPublicView.as_view(), name='commande-statut-paiement'),
     path('commandes/<int:pk>/',        CommandeDetailView.as_view(),   name='commande-detail'),
     path('paiement/webhook/fedapay/',  FedapayWebhookView.as_view(),   name='fedapay-webhook'),
 
