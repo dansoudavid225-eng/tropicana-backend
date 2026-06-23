@@ -1862,7 +1862,17 @@ def verifier_alertes_stock():
 # ─── Remboursement ────────────────────────────────────────────────────────────
 
 class AdminRemboursementView(APIView):
-    """Marquer une commande comme remboursée et notifier le client."""
+    """
+    Marque une commande comme remboursée et notifie le client par email.
+
+    IMPORTANT : FedaPay ne propose aucune API pour déclencher un remboursement
+    par programmation (vérifié dans leur documentation officielle, juin 2026).
+    Cette vue ne fait QUE de l'administratif côté Django — elle ne touche jamais
+    FedaPay. Le remboursement réel de l'argent doit être fait manuellement par
+    l'admin depuis le dashboard FedaPay (section Remboursements) AVANT d'appeler
+    cette vue, qui se charge ensuite de mettre à jour le statut local et prévenir
+    le client.
+    """
     permission_classes = [permissions.IsAdminUser]
 
     def post(self, request, pk):
