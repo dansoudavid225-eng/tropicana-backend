@@ -31,9 +31,6 @@ staticfiles/
 # OS
 .DS_Store
 Thumbs.db
-logs/
-
 .env.production
-logs/
 .env.save
 .env.save.*
