@@ -215,6 +215,8 @@ class ConnexionView(APIView):
         email       = request.data.get('email', '').lower().strip()
         mot_de_passe = request.data.get('mot_de_passe', '')
         ip          = _get_client_ip(request)
+        seuil       = 5
+        fenetre     = datetime.timedelta(minutes=15)
 
         if not email or not mot_de_passe:
             return Response({'detail': 'Email et mot de passe requis.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -222,6 +224,19 @@ class ConnexionView(APIView):
         # Vérification blacklist email/IP
         if Blacklist.objects.filter(valeur__in=[email, ip]).exists():
             return Response({'detail': 'Accès restreint.'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Brute-force : bloquer temporairement après N échecs depuis la même IP
+        tentatives_recentes = LogConnexion.objects.filter(
+            ip=ip, resultat='echec', date__gte=timezone.now() - fenetre
+        ).count()
+        if tentatives_recentes >= seuil:
+            logger_securite.warning(
+                f"Brute-force bloqué — IP: {ip} ({tentatives_recentes} échecs en {int(fenetre.total_seconds()/60)} min)"
+            )
+            return Response(
+                {'detail': 'Trop de tentatives. Réessayez dans 15 minutes.'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
 
         user = authenticate(request, username=email, password=mot_de_passe)
 
@@ -771,6 +786,11 @@ class ContactView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
+        # Honeypot anti-spam : champ caché _hp doit être vide
+        if request.data.get('_hp', '').strip():
+            logger_securite.info(f"Spam bloqué (honeypot) — IP: {_get_client_ip(request)}")
+            return Response({'detail': 'Message envoyé. Nous vous répondrons sous 24h.'}, status=201)
+
         # Vérification blacklist
         email = request.data.get('email', '').strip().lower()
         ip    = _get_client_ip(request)
@@ -781,10 +801,10 @@ class ContactView(APIView):
         if serializer.is_valid():
             msg = serializer.save()
             send_mail(
-                subject=f'[Tropicana Pio Pio] Nouveau message — {msg.sujet}',
+                subject=f'[Tropicana Pio Pio] Nouveau message — {msg.get_objet_display()}',
                 message=(
                     f"De : {msg.nom} <{msg.email}>\n"
-                    f"Sujet : {msg.sujet}\n\n"
+                    f"Sujet : {msg.get_objet_display()}\n\n"
                     f"{msg.message}"
                 ),
                 from_email=settings.DEFAULT_FROM_EMAIL,

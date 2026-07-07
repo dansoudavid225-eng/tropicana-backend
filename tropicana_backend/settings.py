@@ -18,6 +18,15 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'dev-only-insecure-key-change-b
 # ⚠️ IMPORTANT : mettre DEBUG=False dans le .env de production
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
+# Alerter si la SECRET_KEY par défaut est utilisée en production
+if not DEBUG and SECRET_KEY == 'dev-only-insecure-key-change-before-deploy':
+    import warnings
+    warnings.warn(
+        "⚠️  DJANGO_SECRET_KEY non définie ! Utilisez une clé unique et sûre en production. "
+        "Générez-en une avec : python -c \"from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())\"",
+        RuntimeWarning, stacklevel=2
+    )
+
 ALLOWED_HOSTS = os.environ.get(
     'ALLOWED_HOSTS',
     'localhost,127.0.0.1'
